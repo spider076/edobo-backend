@@ -1,0 +1,49 @@
+name: Deploy Node.js to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Deploy to EC2
+        env:
+          PRIVATE_KEY: ${{ secrets.EC2_PRIVATE_KEY }}
+          HOST: ${{ secrets.EC2_HOST }}
+          USER: ${{ secrets.EC2_USER }}
+          TEXTLOCAL_API_KEY: ${{ secrets.EC2_ENV_VAR_1 }}
+          TEXTLOCAL_SENDER_ID: ${{ secrets.EC2_ENV_VAR_2 }}
+        run: |
+          # Save the private key to a file
+          echo "$PRIVATE_KEY" > private_key.pem
+          chmod 600 private_key.pem
+          
+          # Copy files to EC2 instance
+          scp -i private_key.pem -o StrictHostKeyChecking=no -r src package*.json vercel.json jsconfig.json README.md LICENSE $USER@$HOST:/home/ec2-user/edoboMed_backend
+          
+          # SSH into EC2 and perform tasks
+          ssh -i private_key.pem -o StrictHostKeyChecking=no $USER@$HOST << 'EOF'
+            cd /home/ec2-user/edoboMed_backend
+
+            echo "TEXTLOCAL_API_KEY=$ENV_VAR_1" >> .env
+            echo "TEXTLOCAL_SENDER_ID=$ENV_VAR_2" >> .env
+            
+            git pull origin main
+            npm install
+            pm2 start src/index.js --name app || pm2 restart app
+          EOF
