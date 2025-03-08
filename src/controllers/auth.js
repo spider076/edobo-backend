@@ -9,6 +9,7 @@ const fs = require("fs");
 const path = require("path");
 const { getUser } = require("../config/getUser");
 const { default: axios } = require("axios");
+
 const registerUser = async (req, res) => {
   try {
     // Create user in the database
@@ -20,7 +21,7 @@ const registerUser = async (req, res) => {
       return res.status(400).json({
         UserCount,
         success: false,
-        message: "User With This Email Already Exists"
+        message: "User With This Email Already Exists",
       });
     }
 
@@ -28,13 +29,13 @@ const registerUser = async (req, res) => {
       upperCaseAlphabets: false,
       specialChars: false,
       lowerCaseAlphabets: false,
-      digits: true
+      digits: true,
     });
     // Create user with the generated OTP
     const user = await User.create({
       ...request,
       otp,
-      role: Boolean(UserCount) ? request.role || "user" : "super admin"
+      role: Boolean(UserCount) ? request.role || "user" : "super admin",
     });
 
     // Send OTP to the user's phone
@@ -43,12 +44,12 @@ const registerUser = async (req, res) => {
     // Generate JWT token
     const token = jwt.sign(
       {
-        _id: user._id
+        _id: user._id,
         // email: user.email,
       },
       process.env.JWT_SECRET,
       {
-        expiresIn: "7d"
+        expiresIn: "7d",
       }
     );
     // Path to the HTML file
@@ -70,8 +71,8 @@ const registerUser = async (req, res) => {
       service: "gmail",
       auth: {
         user: process.env.RECEIVING_EMAIL, // Your Gmail email
-        pass: process.env.EMAIL_PASSWORD // Your Gmail password
-      }
+        pass: process.env.EMAIL_PASSWORD, // Your Gmail password
+      },
     });
 
     // Email options
@@ -79,7 +80,7 @@ const registerUser = async (req, res) => {
       from: process.env.RECEIVING_EMAIL, // Your Gmail email
       to: user.email, // User's email
       subject: "Verify your email",
-      html: htmlContent // HTML content with OTP and user email
+      html: htmlContent, // HTML content with OTP and user email
     };
 
     // Send email
@@ -89,12 +90,12 @@ const registerUser = async (req, res) => {
       message: "Created User Successfully",
       otp,
       token,
-      user
+      user,
     });
   } catch (error) {
     res.status(500).json({
       message: error.message,
-      status: 500
+      status: 500,
     });
   }
 };
@@ -108,17 +109,17 @@ const me = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: "User Not Found"
+        message: "User Not Found",
       });
     }
     res.status(200).json({
       success: true,
-      data: user
+      data: user,
     });
   } catch (error) {
     res.status(400).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -151,33 +152,33 @@ const loginUser = async (req, res) => {
     const token = jwt.sign(
       {
         _id: user._id,
-        email: user.email
+        email: user.email,
       },
       process.env.JWT_SECRET,
       {
-        expiresIn: "7d"
+        expiresIn: "7d",
       }
     );
 
     const products = await Products.aggregate([
       {
         $match: {
-          _id: { $in: user.wishlist }
-        }
+          _id: { $in: user.wishlist },
+        },
       },
       {
         $lookup: {
           from: "productreviews",
           localField: "productreviews",
           foreignField: "_id",
-          as: "productreviews"
-        }
+          as: "productreviews",
+        },
       },
       {
         $addFields: {
           averageRating: { $avg: "$productreviews.rating" },
-          image: { $arrayElemAt: ["$images", 0] }
-        }
+          image: { $arrayElemAt: ["$images", 0] },
+        },
       },
       {
         $project: {
@@ -192,9 +193,9 @@ const loginUser = async (req, res) => {
           averageRating: 1,
           vendor: 1,
           shop: 1,
-          createdAt: 1
-        }
-      }
+          createdAt: 1,
+        },
+      },
     ]);
 
     return res.status(201).json({
@@ -216,8 +217,8 @@ const loginUser = async (req, res) => {
         state: user.state,
         about: user.about,
         role: user.role,
-        wishlist: products
-      }
+        wishlist: products,
+      },
     });
   } catch (error) {
     return res.status(400).json({ success: false, error: error.message });
@@ -236,7 +237,7 @@ const forgetPassword = async (req, res) => {
     }
 
     const token = jwt.sign({ _id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "7d"
+      expiresIn: "7d",
     });
     // Constructing the link with the token
     const resetPasswordLink = `${request.origin}/auth/reset-password/${token}`;
@@ -265,8 +266,8 @@ const forgetPassword = async (req, res) => {
       service: "gmail",
       auth: {
         user: process.env.RECEIVING_EMAIL, // Your Gmail email
-        pass: process.env.EMAIL_PASSWORD // Your Gmail password
-      }
+        pass: process.env.EMAIL_PASSWORD, // Your Gmail password
+      },
     });
 
     // Email options
@@ -274,7 +275,7 @@ const forgetPassword = async (req, res) => {
       from: process.env.RECEIVING_EMAIL, // Your Gmail email
       to: user.email, // User's email
       subject: "Verify your email",
-      html: htmlContent // HTML content with OTP and user email
+      html: htmlContent, // HTML content with OTP and user email
     };
 
     // Send email synchronously
@@ -283,7 +284,7 @@ const forgetPassword = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Forgot Password Email Sent Successfully.",
-      token
+      token,
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
@@ -301,7 +302,7 @@ const resetPassword = async (req, res) => {
     } catch (err) {
       return res.status(400).json({
         success: false,
-        message: "Invalid Or Expired Token. Please Request A New One."
+        message: "Invalid Or Expired Token. Please Request A New One.",
       });
     }
 
@@ -311,14 +312,14 @@ const resetPassword = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: "User Not Found "
+        message: "User Not Found ",
       });
     }
     if (!newPassword || !user.password) {
       return res.status(400).json({
         success: false,
         message:
-          "Invalid Data. Both NewPassword And User Password Are Required."
+          "Invalid Data. Both NewPassword And User Password Are Required.",
       });
     }
 
@@ -327,20 +328,20 @@ const resetPassword = async (req, res) => {
     if (isSamePassword) {
       return res.status(400).json({
         success: false,
-        message: "New Password Must Be Different From The Old Password."
+        message: "New Password Must Be Different From The Old Password.",
       });
     }
     // Update the user's password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     await User.findByIdAndUpdate(user._id, {
-      password: hashedPassword
+      password: hashedPassword,
     });
 
     return res.status(201).json({
       success: true,
       message: "Password Updated Successfully.",
-      user
+      user,
     });
   } catch (error) {
     return res.status(400).json({ success: false, message: error.message });
@@ -392,7 +393,7 @@ const resendOtp = async (req, res) => {
     if (user.isVerified) {
       return res.status(400).json({
         success: false,
-        message: "OTP Has Already Been Verified"
+        message: "OTP Has Already Been Verified",
       });
     }
     // Generate new OTP
@@ -400,11 +401,11 @@ const resendOtp = async (req, res) => {
       upperCaseAlphabets: false,
       specialChars: false,
       lowerCaseAlphabets: false,
-      digits: true
+      digits: true,
     });
     // Update the user's OTP
     await User.findByIdAndUpdate(user._id, {
-      otp: otp.toString()
+      otp: otp.toString(),
     });
 
     // Send OTP via SMS
@@ -429,8 +430,8 @@ const resendOtp = async (req, res) => {
       service: "gmail",
       auth: {
         user: process.env.RECEIVING_EMAIL, // Your Gmail email
-        pass: process.env.EMAIL_PASSWORD // Your Gmail password
-      }
+        pass: process.env.EMAIL_PASSWORD, // Your Gmail password
+      },
     });
 
     // Email options
@@ -438,7 +439,7 @@ const resendOtp = async (req, res) => {
       from: process.env.RECEIVING_EMAIL, // Your Gmail email
       to: user.email, // User's email
       subject: "Verify your email",
-      html: htmlContent // HTML content with OTP and user email
+      html: htmlContent, // HTML content with OTP and user email
     };
 
     // Send email
@@ -447,7 +448,7 @@ const resendOtp = async (req, res) => {
     // Return the response
     return res.status(200).json({
       success: true,
-      message: "OTP Resent Successfully"
+      message: "OTP Resent Successfully",
     });
   } catch (error) {
     return res.status(400).json({ success: false, message: error.message });
@@ -466,8 +467,8 @@ const sendOtpSMS = async (phoneNumber, otp) => {
         apikey: apiKey,
         numbers: phoneNumber,
         sender: sender,
-        message: message
-      }
+        message: message,
+      },
     });
 
     if (response.data.errors && response.data.errors.length > 0) {
@@ -485,5 +486,5 @@ module.exports = {
   forgetPassword,
   resetPassword,
   verifyOtp,
-  resendOtp
+  resendOtp,
 };

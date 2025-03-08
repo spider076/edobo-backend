@@ -1,21 +1,21 @@
-const Notifications = require('../models/Notification');
-const Products = require('../models/Product');
-const Orders = require('../models/Order');
-const Coupons = require('../models/CouponCode');
-const User = require('../models/User');
-const Shop = require('../models/Shop');
-const nodemailer = require('nodemailer');
-const fs = require('fs');
-const path = require('path');
-const Razorpay = require('razorpay');
-const { getVendor, getAdmin } = require('../config/getUser');
+const Notifications = require("../models/Notification");
+const Products = require("../models/Product");
+const Orders = require("../models/Order");
+const Coupons = require("../models/CouponCode");
+const User = require("../models/User");
+const Shop = require("../models/Shop");
+const nodemailer = require("nodemailer");
+const fs = require("fs");
+const path = require("path");
+const Razorpay = require("razorpay");
+const { getVendor, getAdmin } = require("../config/getUser");
 function isExpired(expirationDate) {
   const currentDateTime = new Date();
   return currentDateTime >= new Date(expirationDate);
 }
 function generateOrderNumber() {
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  let orderNumber = '';
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  let orderNumber = "";
 
   // Generate a random alphabet character
   orderNumber += alphabet.charAt(Math.floor(Math.random() * alphabet.length));
@@ -25,15 +25,17 @@ function generateOrderNumber() {
     orderNumber += Math.floor(Math.random() * 10);
   }
 
+  console.log("random order number : ", orderNumber);
+
   return orderNumber;
 }
 function readHTMLTemplate() {
   const htmlFilePath = path.join(
     process.cwd(),
-    'src/email-templates',
-    'order.html'
+    "src/email-templates",
+    "order.html"
   );
-  return fs.readFileSync(htmlFilePath, 'utf8');
+  return fs.readFileSync(htmlFilePath, "utf8");
 }
 
 const createOrder = async (req, res) => {
@@ -52,7 +54,7 @@ const createOrder = async (req, res) => {
     if (!items || !items.length) {
       return res
         .status(400)
-        .json({ success: false, message: 'Please Provide Item(s)' });
+        .json({ success: false, message: "Please Provide Item(s)" });
     }
 
     const products = await Products.find({
@@ -74,7 +76,7 @@ const createOrder = async (req, res) => {
         ...item,
         total,
         shop: product?.shop,
-        imageUrl: product.images.length > 0 ? product.images[0].url : '',
+        imageUrl: product.images.length > 0 ? product.images[0].url : "",
       };
     });
 
@@ -88,7 +90,7 @@ const createOrder = async (req, res) => {
       if (expired) {
         return res
           .status(400)
-          .json({ success: false, message: 'CouponCode Is Expired' });
+          .json({ success: false, message: "CouponCode Is Expired" });
       }
       // Add the user's email to the usedBy array of the coupon code
       await Coupons.findOneAndUpdate(
@@ -96,7 +98,7 @@ const createOrder = async (req, res) => {
         { $addToSet: { usedBy: user.email } }
       );
 
-      if (couponData && couponData.type === 'percent') {
+      if (couponData && couponData.type === "percent") {
         const percentLess = couponData.discount;
         discount = (percentLess / 100) * grandTotal;
       } else if (couponData) {
@@ -113,8 +115,8 @@ const createOrder = async (req, res) => {
       paymentMethod,
       paymentId,
       discount,
-      currency: 'INR',
-      description: description || '',
+      currency: "INR",
+      description: description || "",
       total: discountedTotal + Number(shipping),
       subTotal: grandTotal,
       shipping,
@@ -122,7 +124,7 @@ const createOrder = async (req, res) => {
       user: existingUser ? { ...user, _id: existingUser._id } : user,
       totalItems,
       orderNo,
-      status: 'pending',
+      status: "pending",
     });
 
     await Notifications.create({
@@ -131,7 +133,7 @@ const createOrder = async (req, res) => {
       paymentMethod,
       orderId: orderCreated._id,
       city: user.city,
-      cover: user?.cover?.url || '',
+      cover: user?.cover?.url || "",
     });
 
     // let htmlContent = readHTMLTemplate();
@@ -148,7 +150,7 @@ const createOrder = async (req, res) => {
     //       <td style="border-radius: 8px; box-shadow: 0 0 5px rgba(0, 0, 0, 0.1); overflow: hidden; border-spacing: 0; border: 0">
     //         <img src="${item.imageUrl}" alt="${item.name}" style="width: 62px; height: 62px; object-fit: cover; border-radius: 8px;">
     //       </td>
-    //       <td style=" padding: 10px; border-spacing: 0; border: 0">${item.name}</td>         
+    //       <td style=" padding: 10px; border-spacing: 0; border: 0">${item.name}</td>
     //       <td style=" padding: 10px; border-spacing: 0; border: 0">${item.sku}</td>
     //       <td style=" padding: 10px; border-spacing: 0; border: 0">${item.quantity}</td>
     //       <td style=" padding: 10px; border-spacing: 0; border: 0">${item.priceSale}</td>
@@ -178,6 +180,8 @@ const createOrder = async (req, res) => {
 
     // await transporter.sendMail(mailOptions);
 
+    console.log("razor initializing.....");
+
     const razorpayInstance = new Razorpay({
       key_id: process.env.RAZORPAY_API_KEY_ID,
       key_secret: process.env.RAZORPAY_API_SECRET,
@@ -185,15 +189,16 @@ const createOrder = async (req, res) => {
 
     const razorpayOrder = await razorpayInstance.orders.create({
       amount: (discountedTotal + shipping) * 100, // Amount in paise
-      currency: 'INR',
+      currency: "INR",
       receipt: orderCreated.orderNo,
       payment_capture: 1, // 1 for automatic capture, 0 for manual
     });
 
+    console.log("razorpay orderId : ", razorpayOrder);
 
     return res.status(201).json({
       success: true,
-      message: 'Order Placed',
+      message: "Order Placed",
       orderId: orderCreated._id,
       data: items.name,
       orderNo,
@@ -208,10 +213,12 @@ const getOrderById = async (req, res) => {
     const id = req.params.id;
     const orderGet = await Orders.findById(id); // Remove curly braces around _id: id
 
+    console.log("order get from getOrderbyId ", orderGet);
+
     if (!orderGet) {
       return res
         .status(404)
-        .json({ success: false, message: 'Order Not Found' });
+        .json({ success: false, message: "Order Not Found" });
     }
 
     return res.status(200).json({
@@ -238,15 +245,15 @@ const getOrdersByAdmin = async (req, res) => {
     let matchQuery = {};
 
     if (shop) {
-      const currentShop = await Shop.findOne({ slug: shop }).select(['_id']);
+      const currentShop = await Shop.findOne({ slug: shop }).select(["_id"]);
 
-      matchQuery['items.shop'] = currentShop._id;
+      matchQuery["items.shop"] = currentShop._id;
     }
 
     const totalOrders = await Orders.countDocuments({
       $or: [
-        { 'user.firstName': { $regex: searchQuery || '', $options: 'i' } },
-        { 'user.lastName': { $regex: searchQuery || '', $options: 'i' } },
+        { "user.firstName": { $regex: searchQuery || "", $options: "i" } },
+        { "user.lastName": { $regex: searchQuery || "", $options: "i" } },
       ],
       ...matchQuery,
     });
@@ -287,7 +294,7 @@ const getOneOrderByAdmin = async (req, res) => {
     if (!orderGet) {
       return res.status(404).json({
         success: false,
-        message: 'Order Not Found',
+        message: "Order Not Found",
       });
     }
 
@@ -310,12 +317,12 @@ const updateOrderByAdmin = async (req, res) => {
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: 'Order Not Found',
+        message: "Order Not Found",
       });
     }
     return res.status(200).json({
       success: true,
-      message: 'Order Updated',
+      message: "Order Updated",
     });
   } catch (error) {
     return res.status(400).json({ success: false, message: error.message });
@@ -330,7 +337,7 @@ const deleteOrderByAdmin = async (req, res) => {
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: 'Order Not Found',
+        message: "Order Not Found",
       });
     }
 
@@ -348,7 +355,7 @@ const deleteOrderByAdmin = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Order Deleted',
+      message: "Order Deleted",
     });
   } catch (error) {
     return res.status(400).json({ success: false, message: error.message });
@@ -362,18 +369,18 @@ const getOrdersByVendor = async (req, res) => {
       vendor: vendor._id.toString(),
     });
     if (!shop) {
-      res.status(404).json({ success: false, message: 'Shop not found' });
+      res.status(404).json({ success: false, message: "Shop not found" });
     }
-    const { limit = 10, page = 1, search = '' } = req.query;
+    const { limit = 10, page = 1, search = "" } = req.query;
 
     const skip = parseInt(limit) * (parseInt(page) - 1) || 0;
     const pipeline = [
       {
         $match: {
-          'items.shop': shop._id, // Assuming 'items.shop' refers to the shop ID associated with the order
+          "items.shop": shop._id, // Assuming 'items.shop' refers to the shop ID associated with the order
           $or: [
-            { 'user.firstName': { $regex: new RegExp(search, 'i') } },
-            { 'user.lastName': { $regex: new RegExp(search, 'i') } },
+            { "user.firstName": { $regex: new RegExp(search, "i") } },
+            { "user.lastName": { $regex: new RegExp(search, "i") } },
           ],
         },
       },
@@ -381,7 +388,7 @@ const getOrdersByVendor = async (req, res) => {
     const totalOrderCount = await Orders.aggregate([
       ...pipeline,
       {
-        $count: 'totalOrderCount', // Name the count field as "totalOrderCount"
+        $count: "totalOrderCount", // Name the count field as "totalOrderCount"
       },
     ]);
     // Access the count from the first element of the result array
